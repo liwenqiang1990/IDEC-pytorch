@@ -18,7 +18,7 @@ from torch.nn.parameter import Parameter
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.nn import Linear
-
+import os
 from utils import MnistDataset, cluster_acc
 
 
@@ -91,8 +91,8 @@ class IDEC(nn.Module):
         self.cluster_layer = Parameter(torch.Tensor(n_clusters, n_z))
         torch.nn.init.xavier_normal_(self.cluster_layer.data)
 
-    def pretrain(self, path=''):
-        if path == '':
+    def pretrain(self, path='data/ae_mnist.pkl'):
+        if not os.path.exists(path):
             pretrain_ae(self.ae)
         # load pretrain weights
         self.ae.load_state_dict(torch.load(self.pretrain_path))
@@ -210,12 +210,13 @@ def train_idec():
         for batch_idx, (x, _, idx) in enumerate(train_loader):
 
             x = x.to(device)
-            idx = idx.to(device)
+            
+            idx = idx.long().to(device)
 
             x_bar, q = model(x)
 
             reconstr_loss = F.mse_loss(x_bar, x)
-            kl_loss = F.kl_div(q.log(), p[idx])
+            kl_loss = F.kl_div(q.log(), p[idx],reduction='batchmean')
             loss = args.gamma * kl_loss + reconstr_loss
 
             optimizer.zero_grad()
